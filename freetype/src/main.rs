@@ -1,18 +1,13 @@
-extern crate graphics;
 extern crate freetype as ft;
-extern crate sdl2_window;
-extern crate opengl_graphics;
+extern crate gfx_device_gl;
+extern crate piston_window;
 extern crate piston;
 extern crate find_folder;
 
-use sdl2_window::Sdl2Window;
-use opengl_graphics::{ GlGraphics, Texture, TextureSettings, OpenGL };
+use piston_window::*;
 use piston::window::WindowSettings;
-use piston::input::*;
-use piston::event_loop::{Events, EventSettings, EventLoop};
-use graphics::{Context, Graphics, ImageSize};
 
-fn glyphs(face: &mut ft::Face, text: &str) -> Vec<(Texture, [f64; 2])> {
+fn glyphs(factory: &mut gfx_device_gl::Factory , face: &mut ft::Face, text: &str) -> Vec<(Texture<gfx_device_gl::Resources>, [f64; 2])> {
     let mut x = 10;
     let mut y = 0;
     let mut res = vec![];
@@ -22,6 +17,7 @@ fn glyphs(face: &mut ft::Face, text: &str) -> Vec<(Texture, [f64; 2])> {
 
         let bitmap = g.bitmap();
         let texture = Texture::from_memory_alpha(
+            factory,
             bitmap.buffer(),
             bitmap.width() as u32,
             bitmap.rows() as u32,
@@ -39,8 +35,6 @@ fn render_text<G, T>(glyphs: &[(T, [f64; 2])], c: &Context, gl: &mut G)
     where G: Graphics<Texture = T>, T: ImageSize
 {
     for &(ref texture, [x, y]) in glyphs {
-        use graphics::*;
-
         Image::new_color(color::BLACK).draw(
             texture,
             &c.draw_state,
@@ -52,7 +46,7 @@ fn render_text<G, T>(glyphs: &[(T, [f64; 2])], c: &Context, gl: &mut G)
 
 fn main() {
     let opengl = OpenGL::V3_2;
-    let mut window: Sdl2Window =
+    let mut window: PistonWindow =
         WindowSettings::new("piston-example-freetype", [300, 300])
         .exit_on_esc(true)
         .opengl(opengl)
@@ -66,15 +60,11 @@ fn main() {
     let mut face = freetype.new_face(&font, 0).unwrap();
     face.set_pixel_sizes(0, 48).unwrap();
 
-    let ref mut gl = GlGraphics::new(opengl);
-    let glyphs = glyphs(&mut face, "Hello Piston!");
+    let glyphs = glyphs(&mut window.factory, &mut face, "Hello Piston!");
 
-    let mut events = Events::new(EventSettings::new().lazy(true));
-    while let Some(e) = events.next(&mut window) {
-        if let Some(args) = e.render_args() {
-            use graphics::*;
-
-            gl.draw(args.viewport(), |c, gl| {
+    while let Some(e) = window.next() {
+        if let Some(_) = e.render_args() {
+            window.draw_2d(&e, |c, gl| {
                 clear(color::WHITE, gl);
                 render_text(&glyphs, &c.trans(0.0, 100.0), gl);
             });
